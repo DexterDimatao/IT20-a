@@ -1,0 +1,11 @@
+{
+  "highScores": [],
+  "gameSettings": {
+    "simpleSpeed": 150,
+    "mediumSpeed": 100,
+    "hardSpeed": 60,
+    "blockSize": 20
+  }
+}
+
+  
