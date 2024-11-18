@@ -3,139 +3,276 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flappy Bird Game</title>
+  <title>Retro Snake Game</title>
   <style>
     body {
       margin: 0;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       height: 100vh;
-      background-color: #70c5ce;
+      background-color: #000;
+      color: white;
+      font-family: Arial, sans-serif;
     }
 
     canvas {
-      border: 2px solid black;
+      border: 2px solid white;
+    }
+
+    .game-over {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 40px;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      display: none;
+    }
+
+    .menu {
+      text-align: center;
+      font-size: 24px;
+      color: white;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .menu button {
+      font-size: 20px;
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .menu button:hover {
+      background-color: #555;
+    }
+
+    .controls {
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .controls button {
+      width: 70px;
+      height: 60px;
+      font-size: 20px;
+      background-color: #8d1919;
+      color: rgb(139, 41, 41);
+      border: none;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    .controls button:hover {
+      background-color: #555;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="320" height="480"></canvas>
+  <!-- Game Menu -->
+  <div class="menu" id="menu">
+    <h1>Select Difficulty</h1>
+    <button onclick="startGame('simple')">Simple</button>
+    <button onclick="startGame('medium')">Medium</button>
+    <button onclick="startGame('hard')">Hard</button>
+  </div>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  
+  <!-- Game Over Message -->
+  <div class="game-over" id="gameOverText">Game Over! Press Space to Restart</div>
+
+  <!-- Control Buttons -->
+  <div class="controls">
+    <button onclick="changeDirection('UP')">⬆️</button><br>
+    <button onclick="changeDirection('LEFT')">⬅️</button>
+    <button onclick="changeDirection('RIGHT')">➡️</button><br>
+    <button onclick="changeDirection('DOWN')">⬇️</button>
+  </div>
+
   <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const gameOverText = document.getElementById("gameOverText");
+    const menu = document.getElementById("menu");
 
-    const bird = {
-      x: 50,
-      y: 150,
-      width: 20,
-      height: 20,
-      gravity: 0.6,
-      lift: -15,
-      velocity: 0,
-    };
-
-    const pipes = [];
-    const pipeWidth = 50;
-    const pipeGap = 100;
-    const pipeSpeed = 2;
-
+    const blockSize = 20; // Size of each block (snake and food)
+    let snake = [
+      { x: 160, y: 200 },
+      { x: 140, y: 200 },
+      { x: 120, y: 200 },
+    ]; // Initial snake
+    let food = { x: 0, y: 0 }; // Food coordinates
+    let direction = "RIGHT"; // Initial direction
     let score = 0;
-    let isGameOver = false;
+    let gameOver = false;
+    let gameSpeed = 100; // Default speed (Simple)
+    let difficulty = 'simple'; // Default difficulty
 
-    function drawBird() {
-      ctx.fillStyle = 'yellow';
-      ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
-    }
-
-    function drawPipes() {
-      pipes.forEach((pipe, index) => {
-        ctx.fillStyle = 'green';
-        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
-        ctx.fillRect(pipe.x, pipe.top + pipeGap, pipeWidth, canvas.height - pipe.top - pipeGap);
+    // Draw snake
+    function drawSnake() {
+      ctx.fillStyle = "lime";
+      snake.forEach((segment) => {
+        ctx.fillRect(segment.x, segment.y, blockSize, blockSize);
       });
     }
 
-    function drawScore() {
-      ctx.fillStyle = 'black';
-      ctx.font = '20px Arial';
-      ctx.fillText('Score: ' + score, 10, 30);
+    // Draw food
+    function drawFood() {
+      ctx.fillStyle = "red";
+      ctx.fillRect(food.x, food.y, blockSize, blockSize);
     }
 
-    function updatePipes() {
-      if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 200) {
-        const topHeight = Math.floor(Math.random() * (canvas.height - pipeGap));
-        pipes.push({ x: canvas.width, top: topHeight });
+    // Move the snake
+    function moveSnake() {
+      const head = { ...snake[0] };
+
+      switch (direction) {
+        case "UP":
+          head.y -= blockSize;
+          break;
+        case "DOWN":
+          head.y += blockSize;
+          break;
+        case "LEFT":
+          head.x -= blockSize;
+          break;
+        case "RIGHT":
+          head.x += blockSize;
+          break;
       }
 
-      pipes.forEach((pipe, index) => {
-        pipe.x -= pipeSpeed;
-
-        if (pipe.x + pipeWidth < 0) {
-          pipes.splice(index, 1);
-          score++;
-        }
-      });
+      snake.unshift(head);
+      if (head.x === food.x && head.y === food.y) {
+        score += 10;
+        spawnFood();
+      } else {
+        snake.pop();
+      }
     }
 
+    // Spawn food at random positions
+    function spawnFood() {
+      food.x = Math.floor(Math.random() * (canvas.width / blockSize)) * blockSize;
+      food.y = Math.floor(Math.random() * (canvas.height / blockSize)) * blockSize;
+    }
+
+    // Check if the snake collides with the wall or itself
     function checkCollision() {
-      if (bird.y + bird.height > canvas.height || bird.y < 0) {
-        isGameOver = true;
+      const head = snake[0];
+
+      if (
+        head.x < 0 ||
+        head.x >= canvas.width ||
+        head.y < 0 ||
+        head.y >= canvas.height
+      ) {
+        return true;
       }
 
-      pipes.forEach(pipe => {
-        if (bird.x + bird.width > pipe.x && bird.x < pipe.x + pipeWidth) {
-          if (bird.y < pipe.top || bird.y + bird.height > pipe.top + pipeGap) {
-            isGameOver = true;
-          }
+      for (let i = 1; i < snake.length; i++) {
+        if (head.x === snake[i].x && head.y === snake[i].y) {
+          return true;
         }
-      });
+      }
+
+      return false;
     }
 
-    function updateBird() {
-      bird.velocity += bird.gravity;
-      bird.y += bird.velocity;
+    // Handle keypress for direction change
+    function handleKeyPress(e) {
+      if (gameOver) {
+        if (e.code === "Space") {
+          resetGame();
+        }
+        return;
+      }
+
+      if (e.code === "ArrowUp" && direction !== "DOWN") {
+        direction = "UP";
+      } else if (e.code === "ArrowDown" && direction !== "UP") {
+        direction = "DOWN";
+      } else if (e.code === "ArrowLeft" && direction !== "RIGHT") {
+        direction = "LEFT";
+      } else if (e.code === "ArrowRight" && direction !== "LEFT") {
+        direction = "RIGHT";
+      }
     }
 
+    // Change direction with buttons
+    function changeDirection(newDirection) {
+      if (gameOver) return;
+
+      if (newDirection === "UP" && direction !== "DOWN") {
+        direction = "UP";
+      } else if (newDirection === "DOWN" && direction !== "UP") {
+        direction = "DOWN";
+      } else if (newDirection === "LEFT" && direction !== "RIGHT") {
+        direction = "LEFT";
+      } else if (newDirection === "RIGHT" && direction !== "LEFT") {
+        direction = "RIGHT";
+      }
+    }
+
+    // Main game loop
     function gameLoop() {
-      if (isGameOver) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'black';
-        ctx.font = '30px Arial';
-        ctx.fillText('Game Over!', 80, canvas.height / 2);
+      if (gameOver) {
+        gameOverText.style.display = "block";
         return;
       }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawBird();
-      drawPipes();
-      drawScore();
+      drawSnake();
+      drawFood();
+      moveSnake();
 
-      updateBird();
-      updatePipes();
-      checkCollision();
+      if (checkCollision()) {
+        gameOver = true;
+      }
 
-      requestAnimationFrame(gameLoop);
+      setTimeout(gameLoop, gameSpeed);
     }
 
-    canvas.addEventListener('click', () => {
-      if (!isGameOver) {
-        bird.velocity = bird.lift;
-      } else {
-        resetGame();
-      }
-    });
-
+    // Reset game
     function resetGame() {
-      bird.y = 150;
-      bird.velocity = 0;
-      pipes.length = 0;
+      snake = [
+        { x: 160, y: 200 },
+        { x: 140, y: 200 },
+        { x: 120, y: 200 },
+      ];
+      direction = "RIGHT";
       score = 0;
-      isGameOver = false;
+      gameOver = false;
+      gameOverText.style.display = "none";
+      spawnFood();
       gameLoop();
     }
 
-    gameLoop();
+    // Start game with selected difficulty
+    function startGame(selectedDifficulty) {
+      difficulty = selectedDifficulty;
+      gameSpeed = difficulty === 'simple' ? 150 : difficulty === 'medium' ? 100 : 60;
+      menu.style.display = "none";
+      spawnFood();
+      gameLoop();
+    }
+
+    // Add keyboard event listener
+    document.addEventListener("keydown", handleKeyPress);
   </script>
 </body>
 </html>
+
+
+
